@@ -1,11 +1,345 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TurfBook — Book your turf</title>
+  <style>
+    /* Reset + base */
+    :root{
+      --bg:#f6f7fb; --card:#ffffff; --muted:#6b7280;
+      --accent:#0ea5a4; --accent-dark:#0b8f8d; --danger:#ef4444;
+      --shadow: 0 6px 18px rgba(16,24,40,0.08);
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background:var(--bg); color:#0f172a; -webkit-font-smoothing:antialiased;
+      line-height:1.4; padding:28px;
+    }
+    header{display:flex;gap:16px;align-items:center;justify-content:space-between;margin-bottom:20px}
+    h1{font-size:20px;margin:0}
+    .sub{color:var(--muted);font-size:13px}
+    /* layout */
+    .container{max-width:1100px;margin:0 auto}
+    .search-row{display:flex;gap:12px;align-items:center;margin:12px 0 20px}
+    .search-row input,.search-row select{
+      padding:10px 12px;border-radius:10px;border:1px solid #e6e9ef;background:white;outline:none;
+      font-size:14px;min-width:0;
+    }
+    .search-row input{flex:1}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+    /* card */
+    .card{background:var(--card);border-radius:12px;padding:14px;box-shadow:var(--shadow);display:flex;gap:12px;align-items:flex-start}
+    .thumb{width:120px;height:80px;border-radius:8px;flex-shrink:0;background-size:cover;background-position:center}
+    .meta{flex:1}
+    .title{font-weight:600;margin:0 0 6px}
+    .meta .info{font-size:13px;color:var(--muted);margin-bottom:8px}
+    .price-row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+    .price{font-weight:700;color:var(--accent)}
+    .btn{background:var(--accent);color:white;padding:8px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
+    .btn.ghost{background:transparent;color:var(--accent);border:1px solid rgba(14,165,164,0.15)}
+    .badge{font-size:12px;padding:6px 8px;border-radius:999px;background:#e6fffb;color:var(--accent-dark);display:inline-block}
+    /* modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:60}
+    .modal{width:100%;max-width:640px;background:white;border-radius:12px;padding:18px;box-shadow:0 20px 50px rgba(2,6,23,0.4)}
+    .modal h2{margin:0 0 10px}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+    label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+    input[type="date"], input[type="time"], select, input[type="number"]{
+      width:100%; padding:10px;border-radius:8px;border:1px solid #e9edf3;background:#fff;
+    }
+    .modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+    .small{font-size:13px;color:var(--muted)}
+    /* responsive */
+    @media (max-width:900px){ .grid{grid-template-columns:repeat(2,1fr)} .thumb{width:100px;height:70px} }
+    @media (max-width:600px){
+      body{padding:14px} .grid{grid-template-columns:1fr;gap:12px}
+      .search-row{flex-direction:column;align-items:stretch}
+      .form-grid{grid-template-columns:1fr}
+      header{flex-direction:column;align-items:flex-start;gap:6px}
+    }
+    /* micro */
+    .empty{padding:40px;border-radius:12px;background:linear-gradient(180deg,#fff,#fbfdff);text-align:center;color:var(--muted);box-shadow:var(--shadow)}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;border:1px solid #f1f5f9;background:#fff;font-size:13px}
+  </style>
 </head>
 <body>
-   <h1>hii</h1> 
+  <div class="container">
+    <header>
+      <div>
+        <h1>TurfBook</h1>
+        <div class="sub">Find and book football, cricket & multi-purpose turfs near you</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="pill" id="my-bookings-btn" aria-haspopup="dialog">My Bookings</button>
+        <button class="btn" id="list-turf-btn">List your turf</button>
+      </div>
+    </header>
+
+    <div class="search-row" role="search" aria-label="Search turfs">
+      <input id="searchInput" type="search" placeholder="Search by area, turf name or landmark" aria-label="Search turfs">
+      <select id="cityFilter" aria-label="Filter by city">
+        <option value="">All cities</option>
+        <option value="Pune">Pune</option>
+        <option value="Mumbai">Mumbai</option>
+        <option value="Nashik">Nashik</option>
+        <option value="Bangalore">Bangalore</option>
+      </select>
+      <select id="sportFilter" aria-label="Filter by sport">
+        <option value="">All sports</option>
+        <option value="Football">Football</option>
+        <option value="Cricket">Cricket</option>
+        <option value="Basketball">Basketball</option>
+      </select>
+    </div>
+
+    <main id="results">
+      <div class="grid" id="venueGrid">
+        <!-- Cards injected by JS -->
+      </div>
+
+      <div id="noResults" class="empty" style="display:none;margin-top:14px">
+        No turfs found — try a different search or city.
+      </div>
+    </main>
+  </div>
+
+  <!-- Booking modal -->
+  <div id="modalBackdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal" role="document" aria-labelledby="modalTitle">
+      <h2 id="modalTitle">Book Turf</h2>
+      <div id="selectedTurf" class="small"></div>
+
+      <form id="bookingForm" onsubmit="return false;" novalidate>
+        <div class="form-grid">
+          <div>
+            <label for="date">Date</label>
+            <input id="date" type="date" required>
+          </div>
+          <div>
+            <label for="time">Time slot</label>
+            <select id="time" required>
+              <option value="">Select time</option>
+            </select>
+          </div>
+          <div>
+            <label for="players">Players (approx.)</label>
+            <input id="players" type="number" min="1" max="50" value="6" required>
+          </div>
+          <div>
+            <label for="contact">Contact phone</label>
+            <input id="contact" type="tel" placeholder="e.g. 9876543210" pattern="[0-9]{10}" required>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn ghost" id="cancelBtn">Cancel</button>
+          <button type="submit" class="btn" id="confirmBtn">Confirm Booking</button>
+        </div>
+      </form>
+
+      <div id="modalNotice" class="small" style="margin-top:10px">
+        <strong>Note:</strong> This is a demo UI. Real payments and backend integration are required to make bookings live.
+      </div>
+    </div>
+  </div>
+
+  <!-- Simple bookings panel (off-canvas substitute) -->
+  <div id="bookingsPanel" style="display:none;position:fixed;right:20px;bottom:20px;background:white;padding:12px;border-radius:12px;box-shadow:var(--shadow);z-index:70;min-width:260px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <strong>My Bookings</strong>
+      <button id="closeBookings" class="pill" style="padding:6px 8px">Close</button>
+    </div>
+    <div id="bookingsList" style="margin-top:10px"></div>
+  </div>
+
+  <script>
+    // Mock data - in production, fetch from server
+    const venues = [
+      { id:1, name:"GreenField Turf", city:"Pune", sport:"Football", pricePerHour:700, thumb:"https://images.unsplash.com/photo-1521412644187-c49fa049e84d?auto=format&fit=crop&w=800&q=60", address:"Kalyani Nagar", availableTimes:["06:00","07:00","08:00","18:00","19:00","20:00"] },
+      { id:2, name:"Wickets Arena", city:"Mumbai", sport:"Cricket", pricePerHour:1200, thumb:"https://images.unsplash.com/photo-1533777324565-a040eb52fac2?auto=format&fit=crop&w=800&q=60", address:"Andheri West", availableTimes:["06:00","07:00","09:00","16:00","18:00"] },
+      { id:3, name:"City Sports Hub", city:"Nashik", sport:"Basketball", pricePerHour:500, thumb:"https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=800&q=60", address:"College Road", availableTimes:["07:00","08:00","17:00","19:00"] },
+      { id:4, name:"GoalPoint Turf", city:"Pune", sport:"Football", pricePerHour:650, thumb:"https://images.unsplash.com/photo-1505842465776-3d243a1f3f0c?auto=format&fit=crop&w=800&q=60", address:"Hinjewadi", availableTimes:["06:00","20:00","21:00"] },
+      { id:5, name:"Pitch Perfect", city:"Bangalore", sport:"Cricket", pricePerHour:900, thumb:"https://images.unsplash.com/photo-1495567720989-cebdbdd97913?auto=format&fit=crop&w=800&q=60", address:"Whitefield", availableTimes:["09:00","10:00","18:00","19:00"] }
+    ];
+
+    // Simple local bookings store (demo only)
+    const bookings = JSON.parse(localStorage.getItem('tb_bookings')||'[]');
+
+    // Utils
+    const $ = id => document.getElementById(id);
+    const el = (tag, cls)=> Object.assign(document.createElement(tag), { className: cls||'' });
+
+    // Render venue cards
+    function renderList(filterText='', city='', sport=''){
+      const grid = $('venueGrid');
+      grid.innerHTML = '';
+      const ftext = filterText.trim().toLowerCase();
+      const filtered = venues.filter(v=>{
+        if(city && v.city !== city) return false;
+        if(sport && v.sport !== sport) return false;
+        if(ftext){
+          return v.name.toLowerCase().includes(ftext)
+            || v.address.toLowerCase().includes(ftext)
+            || v.city.toLowerCase().includes(ftext);
+        }
+        return true;
+      });
+
+      if(filtered.length===0){
+        $('noResults').style.display = 'block';
+        return;
+      } else $('noResults').style.display = 'none';
+
+      for(const v of filtered){
+        const card = el('article','card');
+        const img = el('div','thumb'); img.style.backgroundImage = `url(${v.thumb})`; img.setAttribute('role','img'); img.setAttribute('aria-label', v.name);
+        const meta = el('div','meta');
+        const t = el('h3','title'); t.textContent = v.name;
+        const info = el('div','info'); info.textContent = `${v.city} • ${v.sport} • ${v.address}`;
+        const priceRow = el('div','price-row');
+        const left = el('div');
+        const price = el('div','price'); price.textContent = "₹"+v.pricePerHour+" / hr";
+        const badge = el('span','badge'); badge.textContent = v.availableTimes.length ? 'Slots available' : 'No slots';
+        left.appendChild(price);
+        left.appendChild(document.createTextNode(' '));
+        left.appendChild(badge);
+
+        const actions = el('div');
+        const viewBtn = el('button','btn ghost'); viewBtn.textContent = 'View';
+        viewBtn.onclick = ()=> alert(`${v.name}\n\n${v.sport} • ${v.city}\nPrice: ₹${v.pricePerHour}/hr\nAvailable slots: ${v.availableTimes.join(', ')}`);
+        const bookBtn = el('button','btn'); bookBtn.textContent = 'Book';
+        bookBtn.onclick = ()=> openBooking(v.id);
+
+        actions.appendChild(viewBtn);
+        actions.appendChild(document.createTextNode(' '));
+        actions.appendChild(bookBtn);
+
+        priceRow.appendChild(left);
+        priceRow.appendChild(actions);
+
+        meta.appendChild(t);
+        meta.appendChild(info);
+        meta.appendChild(priceRow);
+
+        card.appendChild(img);
+        card.appendChild(meta);
+        grid.appendChild(card);
+      }
+    }
+
+    // booking modal logic
+    let currentTurf = null;
+    function openBooking(turfId){
+      currentTurf = venues.find(v=>v.id===turfId);
+      if(!currentTurf) return;
+      $('selectedTurf').textContent = `${currentTurf.name} — ${currentTurf.sport} (${currentTurf.city}) — ₹${currentTurf.pricePerHour}/hr`;
+      // prefill date = tomorrow or today (if time available)
+      const dateInput = $('date');
+      const today = new Date();
+      // set min date to today
+      dateInput.min = today.toISOString().split('T')[0];
+      dateInput.value = today.toISOString().split('T')[0];
+
+      // populate time slots
+      const tsel = $('time');
+      tsel.innerHTML = '<option value="">Select time</option>';
+      currentTurf.availableTimes.forEach(t=>{
+        const opt = new Option(`${t} (1 hr)`, t);
+        tsel.appendChild(opt);
+      });
+
+      showModal(true);
+    }
+
+    function showModal(show){
+      const mb = $('modalBackdrop');
+      mb.style.display = show ? 'flex' : 'none';
+      mb.setAttribute('aria-hidden', show ? 'false' : 'true');
+      if(show) document.querySelector('#date').focus();
+    }
+
+    // handle booking form
+    document.querySelector('#cancelBtn').addEventListener('click', ()=> showModal(false));
+    document.querySelector('#modalBackdrop').addEventListener('click', (e)=>{
+      if(e.target.id==='modalBackdrop') showModal(false);
+    });
+
+    document.querySelector('#confirmBtn').addEventListener('click', ()=>{
+      // validate
+      const date = $('date').value;
+      const time = $('time').value;
+      const players = $('players').value;
+      const contact = $('contact').value.trim();
+      const phoneRe = /^[0-9]{10}$/;
+      if(!date || !time || !players || !phoneRe.test(contact)){
+        alert('Please fill all fields with valid values (10-digit phone).');
+        return;
+      }
+      const booking = {
+        id: 'BKG' + Date.now(),
+        turfId: currentTurf.id,
+        turfName: currentTurf.name,
+        city: currentTurf.city,
+        sport: currentTurf.sport,
+        date, time, players, contact,
+        price: currentTurf.pricePerHour
+      };
+      bookings.push(booking);
+      localStorage.setItem('tb_bookings', JSON.stringify(bookings));
+      alert('Booking confirmed!\n\n'+ booking.turfName + '\n' + booking.date + ' ' + booking.time + '\nRef: ' + booking.id);
+      showModal(false);
+      renderBookingsPanel();
+    });
+
+    // Search + filters
+    $('searchInput').addEventListener('input', ()=> {
+      renderList($('searchInput').value, $('cityFilter').value, $('sportFilter').value);
+    });
+    $('cityFilter').addEventListener('change', ()=> renderList($('searchInput').value, $('cityFilter').value, $('sportFilter').value));
+    $('sportFilter').addEventListener('change', ()=> renderList($('searchInput').value, $('cityFilter').value, $('sportFilter').value));
+
+    // My bookings panel
+    $('my-bookings-btn').addEventListener('click', ()=> {
+      renderBookingsPanel();
+      $('bookingsPanel').style.display = 'block';
+    });
+    $('closeBookings').addEventListener('click', ()=> $('bookingsPanel').style.display = 'none');
+
+    function renderBookingsPanel(){
+      const list = $('bookingsList');
+      list.innerHTML = '';
+      const stored = JSON.parse(localStorage.getItem('tb_bookings')||'[]');
+      if(stored.length===0){
+        list.innerHTML = '<div class="small">No bookings yet.</div>';
+        return;
+      }
+      for(const b of stored.slice().reverse()){
+        const d = el('div'); d.style.marginBottom='8px';
+        d.innerHTML = `<strong>${b.turfName}</strong><div class="small">${b.date} • ${b.time} • ${b.city}</div><div style="margin-top:6px"><button class="pill" onclick="cancelBooking('${b.id}')">Cancel</button></div>`;
+        list.appendChild(d);
+      }
+    }
+
+    // expose cancel to global for inline handlers
+    window.cancelBooking = function(id){
+      if(!confirm('Cancel this booking?')) return;
+      const stored = JSON.parse(localStorage.getItem('tb_bookings')||'[]');
+      const idx = stored.findIndex(b => b.id===id);
+      if(idx>-1) stored.splice(idx,1);
+      localStorage.setItem('tb_bookings', JSON.stringify(stored));
+      renderBookingsPanel();
+      alert('Booking cancelled');
+    }
+
+    // "List your turf" button demo
+    $('list-turf-btn').addEventListener('click', ()=> alert('To list a turf, contact us at list@turfbook.example (demo)'));
+
+    // initial render
+    renderList();
+    renderBookingsPanel();
+  </script>
 </body>
 </html>
